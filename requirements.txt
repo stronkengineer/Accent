@@ -1,0 +1,8 @@
+streamlit
+torch
+torchaudio
+transformers
+joblib
+numpy
+yt-dlp
+imageio-ffmpeg
