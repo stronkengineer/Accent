@@ -3,6 +3,6 @@ torch
 torchaudio
 transformers
 joblib
+scikit-learn
 numpy
 yt-dlp
-imageio-ffmpeg
