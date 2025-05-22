@@ -1,6 +1,6 @@
 import streamlit as st
 import torch
-import torchaudio
+import librosa
 import subprocess
 import os
 import uuid
@@ -8,7 +8,6 @@ from transformers import Wav2Vec2Processor, Wav2Vec2Model
 import joblib
 import numpy as np
 from yt_dlp import YoutubeDL
-import imageio_ffmpeg
 
 # Streamlit setup
 st.set_page_config(page_title="Accent Classifier", layout="centered")
@@ -27,32 +26,29 @@ def load_classifier():
 
 clf, encoder = load_classifier()
 
-# Download and convert video/audio
+# Download and convert video to WAV using ffmpeg
 def download_audio_from_video(url, output_dir="temp"):
     os.makedirs(output_dir, exist_ok=True)
     temp_id = str(uuid.uuid4())
     video_path = os.path.join(output_dir, f"{temp_id}.mp4")
     audio_path = os.path.join(output_dir, f"{temp_id}.wav")
     
-    # Download video using yt-dlp
-    ydl_opts = {
-        'outtmpl': video_path,
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'ignoreerrors': True
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        ydl_opts = {
+            'outtmpl': video_path,
+            'format': 'bestaudio/best',
+            'quiet': True
+        }
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except Exception as e:
+        raise RuntimeError(f"yt-dlp error: {e}")
 
     if not os.path.exists(video_path):
         raise RuntimeError(f"Video file not found after download: {video_path}")
 
-    # Use ffmpeg from imageio-ffmpeg package
-    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-
     result = subprocess.run([
-        ffmpeg_path, "-y", "-i", video_path, "-vn",
+        "ffmpeg", "-y", "-i", video_path, "-vn",
         "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -63,13 +59,10 @@ def download_audio_from_video(url, output_dir="temp"):
 
     return audio_path
 
-# Extract Wav2Vec2 features
+# Load and process audio using librosa
 def extract_features(audio_path):
-    waveform, sample_rate = torchaudio.load(audio_path, backend="sox_io")
-    if sample_rate != 16000:
-        resample = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
-        waveform = resample(waveform)
-    inputs = processor(waveform[0], sampling_rate=16000, return_tensors="pt", padding=True)
+    waveform, sample_rate = librosa.load(audio_path, sr=16000, mono=True)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
     with torch.no_grad():
         outputs = model(**inputs)
     embeddings = outputs.last_hidden_state.mean(dim=1)
