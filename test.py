@@ -4,10 +4,15 @@ import librosa
 import subprocess
 import os
 import uuid
+import shutil
 from transformers import Wav2Vec2Processor, Wav2Vec2Model
 import joblib
 import numpy as np
 from yt_dlp import YoutubeDL
+
+# Clean up previous temp folder
+if os.path.exists("temp"):
+    shutil.rmtree("temp")
 
 # Streamlit setup
 st.set_page_config(page_title="Accent Classifier", layout="centered")
@@ -26,7 +31,7 @@ def load_classifier():
 
 clf, encoder = load_classifier()
 
-# Download and convert video to WAV using ffmpeg
+# Download and convert video
 def download_audio_from_video(url, output_dir="temp"):
     os.makedirs(output_dir, exist_ok=True)
     temp_id = str(uuid.uuid4())
@@ -59,7 +64,7 @@ def download_audio_from_video(url, output_dir="temp"):
 
     return audio_path
 
-# Load and process audio using librosa
+# Extract features
 def extract_features(audio_path):
     waveform, sample_rate = librosa.load(audio_path, sr=16000, mono=True)
     inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
