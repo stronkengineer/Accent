@@ -65,7 +65,7 @@ def download_audio_from_video(url, output_dir="temp"):
 
 # Extract Wav2Vec2 features
 def extract_features(audio_path):
-    waveform, sample_rate = torchaudio.load(audio_path, backend="soundfile")
+    waveform, sample_rate = torchaudio.load(audio_path, backend="sox_io")
     if sample_rate != 16000:
         resample = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
         waveform = resample(waveform)
